@@ -1,0 +1,569 @@
+<title>Get IntelliCare</title>
+<style>
+  /* ============================================================================
+   * Design plan
+   * Layout: single scrolling page, sticky pill header, centered content column
+   *         (720px prose sections, 1040px for the two up cards). Brand match
+   *         for an existing product, not a new identity, so the base surface
+   *         tokens stay the ones options.html and the console already use.
+   *         Hero backdrop is a calm clinical one -- two soft blue/teal blooms,
+   *         no stripe/diagonal motif, no extra decoration competing with the
+   *         headline. The demo section is ONE device frame with ONE stage,
+   *         built directly off a real screen recording of the product inside
+   *         eClinicalWorks, not guessed, and tall enough (560px) that the
+   *         dialog below never gets clipped by the frame around it. It leads
+   *         with the full Continuity of Care dialog -- dark glass, close X,
+   *         title, "Since the last visit," a SUMMARY block, labs, older
+   *         history -- open at rest with no animation needed to see it; after
+   *         a look, it shrinks back into the badge (the actual product icon,
+   *         same PNG as the header wordmark, in dark circular chrome) in the
+   *         corner, which then raises a light-glass toast with a green left
+   *         stripe cycling through real messages, before scaling back up
+   *         into the dialog and looping. All three live in the same stage so
+   *         it reads as one feature, one mark. Every date/entry is invented.
+   * Color:  this page's own accent is blue (#2F6FED into #0E7490), calmer for
+   *         a clinical reader than the product's amber and with no purple in
+   *         it. Not invented: #2F6FED is close kin to the --accent already
+   *         used for UI chrome in the product's own design mockup, so this
+   *         reads as the same lineage, not a new one. Amber and green stay,
+   *         scoped to --toast-decision / --toast-confirm -- the real,
+   *         semantic colors the toast demo has to get right, never this
+   *         page's own brand color.
+   * Motion: the hero reveals on load (nothing to scroll for on the very first
+   *         thing shown). Everything below it -- feature tiles, the demo
+   *         frame, download cards, setup steps -- reveals as the page scrolls
+   *         (IntersectionObserver, class-toggled), BUT since the observer
+   *         fires the moment an element is already on screen, whatever sits
+   *         inside the loaded viewport is revealed within a frame of load, no
+   *         real scroll needed for it -- only content genuinely below the
+   *         fold waits on an actual scroll. Demo-stage motion (toast cycling,
+   *         the modal popping from the badge) runs continuously on a timer,
+   *         independent of scroll.
+   * Type:   -apple-system stack throughout, same reason as before: this has
+   *         to read as the same product. ui-monospace for the version tag.
+   * ==========================================================================*/
+  :root {
+    --ink:#14171C; --ink-dim:#5B6270; --ink-faint:#8b9096;
+    --line:rgba(20,23,28,.09);
+    --glass:rgba(255,255,255,.82); --glass-border:rgba(255,255,255,.6);
+    --field-bg:rgba(255,255,255,.9);
+    --chrome:rgba(20,23,28,.7); --chrome-ink:#F3F0E6; --chrome-line:rgba(255,255,255,.18);
+    /* Blue, not amber, for this page's own accent -- calmer for a clinical
+       audience than orange (which reads as an alert color in a chart), and
+       no purple in it either. Close kin to the --accent already used for UI
+       chrome in the product's own Pill & Stripe design mockup, so this reads
+       as the same lineage. Amber/green stay below as
+       --toast-decision/--toast-confirm -- the real, semantic colors the
+       toast demo has to show accurately, not this page's brand color. */
+    --accent:#2F6FED; --accent-deep:#0E7490; --accent-ink:#F3F0E6; --accent-hover:#2559C4;
+    --toast-confirm:#1FA855; --toast-decision:#F59E0B;
+    --ok:#1FA855; --danger:#c0362c;
+    --sky-1:#f2f6fa; --sky-2:#e6eef4; --sky-3:#f2f6fa;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme:dark) {
+    :root:not([data-theme="light"]) {
+      --ink:#F3F0E6; --ink-dim:#b9bec7; --ink-faint:#7b818b;
+      --line:rgba(255,255,255,.1);
+      --glass:rgba(30,32,38,.66); --glass-border:rgba(255,255,255,.14);
+      --field-bg:rgba(255,255,255,.06);
+      --sky-1:#14171c; --sky-2:#141c22; --sky-3:#14171c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink:#F3F0E6; --ink-dim:#b9bec7; --ink-faint:#7b818b;
+    --line:rgba(255,255,255,.1);
+    --glass:rgba(30,32,38,.66); --glass-border:rgba(255,255,255,.14);
+    --field-bg:rgba(255,255,255,.06);
+    --sky-1:#14171c; --sky-2:#141c22; --sky-3:#14171c;
+    color-scheme: dark;
+  }
+  * { box-sizing:border-box; min-width:0; }
+  html, body { height:100% }
+  body {
+    margin:0; color:var(--ink);
+    background:linear-gradient(180deg,var(--sky-1),var(--sky-2) 55%,var(--sky-3));
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    overflow-x:hidden;
+  }
+  a { color:inherit }
+  h1,h2,h3 { text-wrap:balance; margin:0 }
+  .wrap { max-width:1040px; margin:0 auto; padding:0 20px }
+  .prose { max-width:720px; margin:0 auto; padding:0 20px }
+  @media (prefers-reduced-motion:reduce) { *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important } }
+
+  /* ---- header ---- */
+  header {
+    position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+    background:var(--chrome); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);
+    border-bottom:1px solid var(--chrome-line); color:var(--chrome-ink);
+  }
+  .headbar { max-width:1040px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px }
+  .wordmark { display:inline-flex; align-items:center; gap:8px; font-weight:700; font-size:15px; letter-spacing:.2px }
+  .wordmark img { width:24px; height:24px; display:block; flex:none }
+  nav.links { display:flex; gap:22px; font-size:14px; font-weight:600 }
+  nav.links a { opacity:.82; text-decoration:none }
+  nav.links a:hover { opacity:1 }
+  @media (max-width:560px) { nav.links { display:none } }
+
+  /* ---- hero + clinical backdrop ---- */
+  .hero { position:relative; padding:88px 20px 64px; text-align:center; overflow:hidden }
+  /* Calm clinical backdrop, not a marketing stripe: two soft blue/teal blooms
+     for depth, drawn very lightly behind the headline. No other motif. */
+  .clinical-bg { position:absolute; inset:-15% -10% auto -10%; height:460px; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(46% 50% at 20% 15%, rgba(47,111,237,.16), transparent 70%),
+      radial-gradient(50% 55% at 82% 25%, rgba(14,116,144,.14), transparent 72%);
+    -webkit-mask-image:linear-gradient(180deg, #000 55%, transparent 100%);
+            mask-image:linear-gradient(180deg, #000 55%, transparent 100%);
+  }
+  .hero-inner { position:relative; z-index:1 }
+  .eyebrow {
+    display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--accent-ink); background:linear-gradient(120deg,var(--accent),var(--accent-deep)); border:1px solid transparent;
+    padding:6px 14px; border-radius:999px; margin-bottom:22px;
+  }
+  .hero h1 { font-size:clamp(30px,5vw,46px); font-weight:800; letter-spacing:-.02em; line-height:1.12; margin-bottom:16px }
+  .hero p.sub { color:var(--ink-dim); font-size:18px; line-height:1.55; max-width:560px; margin:0 auto 32px }
+  .cta-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap }
+  .req-note { max-width:520px; margin:16px auto 0; font-size:12.5px; line-height:1.55; color:var(--ink-faint) }
+
+  /* ---- reveal-on-load (hero only -- the very first thing shown, so it
+     can't wait on a scroll) ---- */
+  .reveal { opacity:0; transform:translateY(14px); }
+  .reveal.in { animation:revealIn .55s cubic-bezier(.16,1,.3,1) forwards; }
+  @keyframes revealIn { to { opacity:1; transform:translateY(0) } }
+
+  /* ---- reveal-on-scroll (everything else): class-toggled by an
+     IntersectionObserver, not a keyframe, so it can be triggered once and
+     stay done -- see the script for why anything already in the loaded
+     viewport still reveals immediately rather than waiting on a real scroll. */
+  .reveal-scroll { opacity:0; transform:translateY(22px) scale(.97); filter:blur(3px);
+    transition:opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1), filter .6s cubic-bezier(.16,1,.3,1);
+  }
+  .reveal-scroll.in { opacity:1; transform:translateY(0) scale(1); filter:blur(0) }
+
+  /* ---- buttons ---- */
+  .btn { appearance:none; border:none; font:700 15px -apple-system,sans-serif; padding:13px 26px; border-radius:999px; cursor:pointer; display:inline-flex; align-items:center; gap:9px; text-decoration:none; transition:transform .15s ease, box-shadow .15s ease, background .15s ease }
+  .btn-primary { background:linear-gradient(120deg,var(--accent),var(--accent-deep)); color:var(--accent-ink); box-shadow:0 6px 18px rgba(47,111,237,.26) }
+  .btn-primary:hover { transform:translateY(-1px); box-shadow:0 10px 22px rgba(47,111,237,.34) }
+  .btn-secondary { background:none; border:1px solid var(--line); color:var(--ink) }
+  .btn-secondary:hover { background:var(--field-bg); transform:translateY(-1px) }
+  .btn[aria-disabled="true"] { opacity:.55; cursor:default; position:relative }
+  .btn[aria-disabled="true"]:hover { transform:none }
+  .btn .icon { width:18px; height:18px; flex:none }
+  /* Real Chrome mark, not an abstract line icon: built from primitives
+     (conic-gradient ring + two circles) rather than traced path data, so it
+     stays crisp at 18px and needs no external asset. */
+  .chrome-mark { position:relative; width:18px; height:18px; border-radius:50%; flex:none;
+    background:conic-gradient(from -90deg, #EA4335 0deg 120deg, #FBBC05 120deg 240deg, #34A853 240deg 360deg);
+    box-shadow:0 0 0 1px rgba(0,0,0,.06);
+  }
+  .chrome-mark::before { content:""; position:absolute; inset:26%; background:#fff; border-radius:50% }
+  .chrome-mark::after { content:""; position:absolute; inset:33%; background:#4285F4; border-radius:50% }
+
+  /* ---- panel / glass ---- */
+  .panel {
+    background:var(--glass); backdrop-filter:blur(16px) saturate(150%); -webkit-backdrop-filter:blur(16px) saturate(150%);
+    border:1px solid var(--glass-border); border-radius:18px;
+    box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 14px 30px rgba(10,12,16,.1);
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+
+  /* ---- section shell ---- */
+  section { padding:56px 0 }
+  .section-head { text-align:center; margin-bottom:36px }
+  .section-head .kicker { font-size:12.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:8px }
+  .section-head h2 { font-size:28px; font-weight:800; letter-spacing:-.01em }
+
+  /* ---- features ---- */
+  .feature-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px }
+  .feature-card { padding:24px; display:flex; flex-direction:column; gap:10px }
+  .feature-card:nth-child(1) { transition-delay:0s }
+  .feature-card:nth-child(2) { transition-delay:.08s }
+  .feature-card:nth-child(3) { transition-delay:.16s }
+  .feature-card:nth-child(4) { transition-delay:.24s }
+  .feature-card .dot { width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,rgba(47,111,237,.18),rgba(14,116,144,.16)); color:var(--accent-deep); display:flex; align-items:center; justify-content:center }
+  .feature-card .dot svg { width:18px; height:18px }
+  .feature-card h3 { font-size:15.5px; font-weight:700 }
+  .feature-card p { margin:0; font-size:13.8px; line-height:1.55; color:var(--ink-dim) }
+
+  /* ---- live demo: ONE stage, three things happening in it, all anchored to
+     the same badge -- recreated from a real screen recording of the product
+     inside eClinicalWorks, not guessed. It opens on the Continuity of Care
+     dialog itself (that's the resting state, shown at rest with no JS
+     needed), since that's the fuller, more impressive thing to lead with;
+     after a few seconds it shrinks back down into the badge in the corner,
+     and a light-glass toast with a colored left stripe cycles through real
+     messages (green = informational, amber = needs a decision -- this is
+     the literal "stripe" the system is named for) -- then the badge scales
+     back up into the dialog and the loop repeats. The stage is tall enough
+     (560px) that the dialog's full content -- title, "Since the last
+     visit," SUMMARY, labs, older history -- never gets clipped by the
+     frame around it. Nothing here needed two separate demo cards: it's one
+     mark doing two things, so it's shown that way. ---- */
+  .demo-frame { padding:0; overflow:hidden }
+  .demo-chrome { display:flex; align-items:center; gap:7px; padding:12px 16px; border-bottom:1px solid var(--line) }
+  .demo-chrome .dotrow { display:flex; gap:6px }
+  .demo-chrome .dotrow span { width:9px; height:9px; border-radius:50%; background:var(--line) }
+  .demo-chrome .fake-url { flex:1; text-align:center; font-size:12px; font-weight:600; color:var(--ink-dim) }
+  .demo-stage { position:relative; min-height:560px; overflow:hidden;
+    background:linear-gradient(180deg, transparent 0%, transparent 80%, rgba(20,23,28,.03) 100%);
+  }
+
+  .cc-modal-backdrop { position:absolute; inset:0; padding:24px 28px; opacity:0; filter:blur(1.5px); pointer-events:none;
+    transition:opacity .5s ease;
+  }
+  .demo-stage.modal-open .cc-modal-backdrop { opacity:.55 }
+  .cc-modal-backdrop .bd-line { height:7px; border-radius:4px; background:var(--line); margin-bottom:12px }
+
+  .demo-badge { position:absolute; right:28px; bottom:24px; width:52px; height:52px; border-radius:50%; z-index:2;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--chrome); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);
+    border:1px solid var(--chrome-line);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.24), 0 10px 26px rgba(10,12,16,.28);
+    transition:box-shadow .3s ease;
+  }
+  .demo-badge::before { content:""; position:absolute; inset:-14px; border-radius:50%; z-index:-1;
+    background:radial-gradient(circle, rgba(255,255,255,.4), rgba(154,209,255,.14) 55%, transparent 75%);
+    filter:blur(8px); opacity:.85; }
+  .demo-badge img { width:27px; height:27px; display:block }
+  /* A brief highlight ring while the modal is open -- ties the open dialog
+     visually back to the mark it came from. */
+  .demo-stage.modal-open .demo-badge { box-shadow:inset 0 1px 0 rgba(255,255,255,.24), 0 10px 26px rgba(10,12,16,.28), 0 0 0 6px rgba(47,111,237,.28) }
+
+  .demo-toast { position:absolute; right:24px; bottom:88px; z-index:1; width:min(280px, calc(100% - 48px));
+    display:flex; overflow:hidden; border-radius:16px;
+    background:var(--glass); backdrop-filter:blur(9px) saturate(140%); -webkit-backdrop-filter:blur(9px) saturate(140%);
+    border:1px solid var(--glass-border);
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset, 0 16px 30px rgba(10,12,16,.16);
+    opacity:1; transform:translateY(0) scale(1); transition:opacity .3s cubic-bezier(.16,1,.3,1), transform .3s cubic-bezier(.16,1,.3,1);
+  }
+  /* .swap is the brief dip used only when JS changes the message -- the
+     resting state above is always fully visible, so the demo shows a real
+     example immediately even if the script never runs. */
+  .demo-toast.swap { opacity:0; transform:translateY(6px) scale(.98) }
+  /* While the modal is open, the toast steps aside -- they're the same mark,
+     not two things happening on top of each other. */
+  .demo-stage.modal-open .demo-toast { opacity:0; transform:translateY(6px) scale(.96); pointer-events:none }
+  .demo-toast .stripe { width:5px; flex:none; background:var(--toast-confirm) }
+  .demo-toast.decision .stripe { background:var(--toast-decision) }
+  .demo-toast .body { padding:11px 14px 12px 11px; min-width:0 }
+  .demo-toast .eyebrow-label { font-size:9.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--toast-confirm); margin-bottom:3px }
+  .demo-toast.decision .eyebrow-label { color:var(--accent-hover) }
+  .demo-toast .title { font-size:13.5px; font-weight:700; color:var(--ink); margin:0 }
+  .demo-toast .desc { font-size:12px; color:var(--ink-dim); margin:3px 0 0; line-height:1.5 }
+  .demo-caption { padding:16px 20px 20px; font-size:12.5px; color:var(--ink-faint); text-align:center }
+
+  /* The Continuity of Care dialog itself: pinned centered in the stage, but
+     resting scaled down to almost nothing and offset toward the badge's
+     corner, opacity 0 -- so its entrance (triggered by JS adding
+     .modal-open to the stage) reads as growing directly out of that mark,
+     not fading in from nowhere. All copy is invented/generic, no patient
+     data. */
+  .cc-modal { position:absolute; left:50%; top:50%; z-index:3; width:calc(100% - 40px); max-width:440px;
+    max-height:calc(100% - 32px); overflow-y:auto;
+    background:var(--chrome); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);
+    border:1px solid var(--chrome-line); border-radius:14px; color:var(--chrome-ink);
+    padding:18px 20px 16px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 26px 50px rgba(10,12,16,.4);
+    opacity:0; pointer-events:none;
+    transform:translate(-50%,-50%) translate(130px,150px) scale(.1);
+    transition:transform .55s cubic-bezier(.16,1,.3,1), opacity .4s ease;
+  }
+  .demo-stage.modal-open .cc-modal { opacity:1; pointer-events:auto; transform:translate(-50%,-50%) translate(0,0) scale(1) }
+  .cc-close { position:absolute; top:14px; right:14px; width:22px; height:22px; border-radius:50%; border:none; background:rgba(255,255,255,.12); color:var(--chrome-ink); font-size:14px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0 }
+  .cc-modal-head h4 { font-size:16px; font-weight:800; margin:0 0 2px; padding-right:26px }
+  .cc-modal-head p { margin:0 0 14px; font-size:11.5px; color:rgba(243,240,230,.55) }
+  .cc-label { font-size:9.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:rgba(243,240,230,.48); margin:12px 0 7px }
+  .cc-label:first-of-type { margin-top:0 }
+  .cc-summary-box { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:11px 13px }
+  .cc-summary-box p { margin:0; font-size:12px; line-height:1.6; color:rgba(243,240,230,.86) }
+  .cc-date { color:#bcd6ff; font-weight:700 }
+  .cc-table-wrap { overflow-x:auto; border-radius:8px; border:1px solid rgba(255,255,255,.1) }
+  .cc-table { width:100%; border-collapse:collapse; font-size:11px; white-space:nowrap }
+  .cc-table th { text-align:left; font-size:9px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:rgba(243,240,230,.46); padding:7px 9px; background:rgba(255,255,255,.05) }
+  .cc-table td { padding:6px 9px; color:rgba(243,240,230,.86); border-top:1px solid rgba(255,255,255,.07) }
+  .cc-table .flag-h { color:#ff9d8a; font-weight:800 }
+  .cc-table .flag-l { color:#8ac4ff; font-weight:800 }
+  .cc-old { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px }
+  .cc-old li { font-size:11px; color:rgba(243,240,230,.66); padding-left:12px; position:relative }
+  .cc-old li::before { content:""; position:absolute; left:0; top:6px; width:3.5px; height:3.5px; border-radius:50%; background:rgba(243,240,230,.4) }
+
+  /* ---- setup guide ---- */
+  .steps { list-style:none; margin:0; padding:0; counter-reset:step }
+  .steps li { counter-increment:step; display:flex; gap:16px; padding:18px 0; border-top:1px solid var(--line) }
+  .steps li:first-child { border-top:none }
+  .steps li:nth-child(1) { transition-delay:0s }
+  .steps li:nth-child(2) { transition-delay:.06s }
+  .steps li:nth-child(3) { transition-delay:.12s }
+  .steps li:nth-child(4) { transition-delay:.18s }
+  .steps .num { flex:none; width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-deep)); color:var(--accent-ink); font-weight:800; font-size:13.5px; display:flex; align-items:center; justify-content:center }
+  .steps .body h4 { font-size:14.5px; font-weight:700; margin-bottom:4px }
+  .steps .body p { margin:0; font-size:13.8px; line-height:1.55; color:var(--ink-dim) }
+  .steps .body code { font-family:ui-monospace,"SF Mono",Menlo,monospace; background:var(--field-bg); padding:1px 6px; border-radius:5px; font-size:.92em }
+
+  footer { padding:36px 20px 48px; text-align:center; font-size:13px; color:var(--ink-faint) }
+  footer a { text-decoration:underline; text-underline-offset:2px }
+  footer .foot-links { display:flex; gap:18px; justify-content:center; margin-top:10px; flex-wrap:wrap }
+</style>
+
+<header>
+  <div class="headbar">
+    <span class="wordmark"><img src="data:image/png;base64,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" alt="" />IntelliCare</span>
+    <nav class="links">
+      <a href="#features">Features</a>
+      <a href="#demo">See it work</a>
+      <a href="#setup">Get set up</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="clinical-bg"></div>
+    <div class="hero-inner">
+      <div class="eyebrow reveal" style="animation-delay:.05s">For LoneStar Neurology staff</div>
+      <h1 class="reveal" style="animation-delay:.12s">Your eCW chart,<br>already thought through</h1>
+      <p class="sub reveal" style="animation-delay:.2s">IntelliCare reads the chart you already have open and gives you a quiet nudge exactly when it matters, so nothing about the visit slips by.</p>
+      <div class="cta-row reveal" style="animation-delay:.28s">
+        <a class="btn btn-primary" id="addToChromeBtn" href="https://chromewebstore.google.com/detail/intellicare/nehhfdlcjmlagmlffcncdbfihgheehaj?authuser=0&amp;hl=en" target="_blank" rel="noopener noreferrer">
+          <span class="chrome-mark" aria-hidden="true"></span>
+          Add to Chrome*
+        </a>
+      </div>
+      <p class="req-note reveal" style="animation-delay:.34s">*Requires Chrome 138 or newer. AI summaries run on Windows 10/11 or macOS 13+ with at least 22 GB of free disk space and either a GPU with more than 4 GB of VRAM or 16 GB of RAM and 4+ CPU cores. Where those aren't met, everything else still works and summaries show the notes as written.</p>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="section-head reveal-scroll">
+        <div class="kicker">What it does for you</div>
+        <h2>Four quiet things, running in the background</h2>
+      </div>
+      <div class="feature-grid">
+        <div class="panel feature-card reveal-scroll">
+          <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h6l4 4v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v4h4"/><path d="M9.3 14.6l1.7 1.7L15.2 12"/></svg></div>
+          <h3>Documentation reminders</h3>
+          <p>A quiet note the moment something's worth a second look, right there while you're still charting.</p>
+        </div>
+        <div class="panel feature-card reveal-scroll">
+          <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg></div>
+          <h3>Continuity of care</h3>
+          <p>A short summary of what's happened since the last visit, added right into the note as you start documenting.</p>
+        </div>
+        <div class="panel feature-card reveal-scroll">
+          <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6.5L4.5 17a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L15 8.5V2"/><path d="M9 2h6"/><path d="M7.3 14h9.4"/></svg></div>
+          <h3>Abnormal labs, surfaced</h3>
+          <p>Results worth knowing about before the next visit, pulled up automatically instead of buried in the chart.</p>
+        </div>
+        <div class="panel feature-card reveal-scroll">
+          <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+          <h3>Runs entirely on-device</h3>
+          <p>Summaries are generated by Chrome's own built-in AI, right in your browser. Nothing about your notes ever leaves this computer.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo">
+    <div class="wrap">
+      <div class="section-head reveal-scroll">
+        <div class="kicker">See it work</div>
+        <h2>This is what shows up on the chart</h2>
+      </div>
+      <div class="panel demo-frame reveal-scroll" style="max-width:640px;margin:0 auto">
+        <div class="demo-chrome">
+          <span class="dotrow"><span></span><span></span><span></span></span>
+          <span class="fake-url">eClinicalWorks</span>
+        </div>
+        <div class="demo-stage modal-open" id="demoStage">
+          <div class="cc-modal-backdrop" aria-hidden="true">
+            <div class="bd-line" style="width:38%"></div>
+            <div class="bd-line" style="width:70%"></div>
+            <div class="bd-line" style="width:55%"></div>
+            <div class="bd-line" style="width:64%"></div>
+            <div class="bd-line" style="width:44%"></div>
+            <div class="bd-line" style="width:60%"></div>
+          </div>
+          <div class="demo-badge">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAWe0lEQVR4nO2deWAV1dm4E1D8bN1+dalbvwdERVFAEBVUKAoKboBSURFxqUHp50JdqiwVRUkFVEBbN6hiVWJREeKKEquCEreiRJGiREVZgmxCgDxAMr8GiUIycxPg3izmPn/fuXPmPndmznnP+56TkpIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZLULKRLinTcUdrVqeq2lMeRcsDB0g8Pvh+bdcXWO1Z1m2o0cvYBctpIafe+HPOqND5X6tet6naFcaTseYhkY8MAmwbYWmz/R+xS1U2rmUjX3eX0N+WkQI4N5IjA+g3Weji9qrptYRws3bFh0Sb5AXYIsPNsPG/Xqm5bjUQ6dZWTCjeTH9iYwJZ8YFv+p6rbVxo8ZMSW8rsE2CMfLzu8qttWI5G2A8vIP4bA35JnJ35d1e3bHDysHjZ7p5T8ANMCvKZnVbevxiGtU6TlP8rIb0fgGay1G82quo2bgy0OwtbLy8rvG2D/sZhe1U2sWchRO0rjd0LkB3anyF6cXdVt3Bw88RLsUFRW/oAAh8zFEf+vqttYo5BD97RBg29D5AdeSuAf+HNVt7EE/G1dPOWFcPnpAY7agA+fXtXtrFHYkGY2Zm2o/KsI/BNPO5jUqm5nysY/QKfDscuKCPkBjglwXAZmVvs4RrXBJpwfKf8mAm9jpsP5RVW3E89IwbPvjC0/I8DMZfhacjRQUTyOYZHyBxN4F8v9G/Wrup34u/rYY3458gPMCnD6fZhTLZ5a1RpPoK4nMSVS/t0EPkihY+lYle3E7nWw58gI+d9tKT87wJzlOLd5Vba5RmAH9vYM5seQH/g4gc8wqCrbib3aYtrKsvJHf40Zt2Jm0WbyA8wNcNFLuKrKX13VGjtzgt1ZF1P+BAJf4RWnUiUdK7x4X+z975A7vwif6IfP74lZn24pPy/AVRvI9ybyTHYIo/B8ri9X/mQCp/GtH7JXZbcPL9kVez8d0dufic/s+cPn3r0Qc9ZtJj9glQF5riTXbuRY2U2v/tiTOl7GCxWQHziD9c6mXWW2Dy/ZDa94BPsWhshfgxPO+umzOTth7rOl5AfkGpDjd2R7FlkmO4WbYxr7eBXzKyA/cA6B33JbZbUNLz4Qe0/EvkUhvf0ifO4efLHulscsboj5c0vJD8g2IMvlTLI3GSZzBkrwWjp6ExsqJH8+gcuZWlBAQn9A7L4jXtQZe8+KHupNnIwv7R56/Co7keeKUvIDMg3IUEb7KCOtT3otfyV4PSn2Y1SE/HVl5K8gWFvAiuVySCLag6fXw24n4IXPYlpBtPxJ7+PLv4n8njxTyfX35Li6lPyAMQaMMiDdefT3Zq7xANJq6WvBgezi7XwSeudP5TNnsKGU/GCpBN9I73i2A9v+Bjv2wa7/wh5rYgd5Jr6LLzcs9ztzrEO2V5DlqhD5AQMM6GvA5X7LBT7MWZ5Ke3eK53VVexzC8d6NoY/9D7nLOXxTWv48CT6TFz+UuKSJYZtm2OGLGBM7JfILceLz+PIBFf7uLOuQ6blkuDBUfpoBPQzoYkAH19Hah2hqvXhcV7XHoaQ4grsi3vkFzqKVC/hniPzgA1k2Vcq9C8sD26XgKf8oX/64lfjcYHxpq1O9yDCFMTZnlG+RbmGE/IDWBjS1gENsvb3XVSPwXnb3QWaHdvj+wwy/4heu5Ly1BRSWkh+8KcHLcvX2tgFPrYNdXyvnzi/CzEzM+t9tPs9Q6zLYc+nvghjyAxoaHFxbMkodzVk+zobQ3v433FH8mTWy3xKZX1r+SxI8Le885vbnCeKFN2JaYfkTO9mzMOdkzN2qDhvD3IXbvZP+ri5P/qH4bRNke6+p2uOj1PFJno4Y6q12CS2KP7dUUr+Wf4TID8bK2gfk+O1tC6btgtcOxf7zML0wQn5JeHcZ5l2C+RUK6zLcvbnDZxlgYTny1xyK2U3xlGOoBUNDMzjcCSyPGOe/6Wp+7Ah9Kh0/kPWl5Ad/k2C4jBnk9ieJ4IBUvGNvHHEejn4NMwpC5JeEd1eT75XlxfYZ7j7c4avlvPMXcIgjGmLLI7HaZT0nBMeT4kTSQ+WvoKhg7ZZDvPdk1zdkZmn5wyQYJItvlIPi2T4ctxNO7IRTpmN2USn5JeHdfHK9ICq2zzB34w4nxZC/kqMcyWHWh1oWA/B59vdVvo4I8nyzUvYvfcwLcnOI/OAGCf4gt/VKwGsTp++OMwdj7uqI2P5ism1V5rih7sDtjmKARaHyjzeHFrajcS2dHXQKf3IaRSHyg+UyIi9E5j+lwVhZXFp+Hwl6yVe/C/nTxAPMrYOLzsNVSyJi+x+S6d5bHDPYC+hvQYT8VzjayAjizx5fZ1/fJjdM/lL5foE0DTturKT+VR4KkR90k+A0GdgmQZ1nzC+O7Z9JnksjYvt3MeaHu5lbhf7mRsh/iZZW+lR2tcE3SHE6tziDoojw7pO5MaJ7d0rzQbKytPxOErSRb46WhA2fNsb253oxOa4Nie1/z70eyy3WoZ/3R8j/kKNNyFOqxuC7HOxHLAiTP09Wfy5l3qebM0jqXi9PhsgPWkjQSO7Bhgl7r5LjDkx3JFkWhcT2n+Mmj+Navw/p8C2hhccmql01At+nrh8zJkJ+MFueypEdyvueK6RlL1kZIj/AhiuwSctEXgdT3JtJ5oRM7KzlGieHyC/iKG+mcS3r6ZfGHE51DmsiJna+/0gqJK6X1D1HHgmRv6k+v9Ur2H7nRF4L4+zOGNeHTOysLzPOb+ZHHGbtLhHzU/byc/4dIT/4t9yfbcUTPU+Vw9rI4rLyN1bpbsDOf8AeCbseRrszI50aY1avJMhTyKFWy3UNKg1nUdcvuMf5FEXM6n3zzlYGctpIanO5tZEUlZJfUqW7EC8PHU3EC+7w/HLDuwf7aQPcI5HtqPaYyznOZ02E/MJpcnXWNgzfDpU9seHHIfI3zepd+zr2D03Xigf081dc6+flzOoNTNT5awR+SWMX8HWE/OAtyZoiv9zW78dmZ2HrNeH1+QOKcMg9OKrcjuU2nbuvKfzeETFm9VY1wSMSce4agV+xtwuYFiX/TVnyqhy9PefA1nWxwwMxkjkKcHQaZiSkB875tqOL60vLb4RBc3z7WGpJZk9p/IpdXRiZyVMsf8Nk6ZsZl1m8Lr/GHh/HSOZYjpNOx6z4XNzm5z7TX9HeL0vLb4HB8VhpqevVCr9mZxfygCsojJBfnMkzfpLEbaiGaW2x77IYyRwLMbtNvM7343k7mEorJ5SW3wY3dMD28T5ftcevNsq/1xVsiCF/5kQ5MJ7nxb6pOOAaTF8XI5ljHuaeEM/zbjz3kd5YSn7QERd3ppaFfTc99h+KJf8lWfRcOeHebQXT6+GoB34o1AzN5Cmez/8W8zuQH7+Mm/oH2boRrimR3wmDs/HV86hFlT9+xa9dyDOxHvsvycoJ0i0jgeluOGZ3zHg+RiZP8Xz+dyyyB7nGJaW8EdZtjv1OxMWdcO05+MEFeFQ8vrva4yyKh3rNXMC7MTp8xfLXTpArM7Yi2retYOa+mDU1Qn7JfP5qZnoL2calZr8Npp6Cv+mCTc7H2rFCqLPY0bn0cgELypFfMEGuz4hTEUdFwGww590I+SXz+YVM8TkmGdd0slqBn4BfMNb5WI78NRPkuowKzPLFG8xtgHnTI+RvPp//JaPtwchaOmbfGnyPXzqTND/ny6iJnc3kfz9BrqjMO780mH8gq3wthvySKd11DPEZ+tmEvrV82jYM/8VOZnOGHzHNOWyogPwFE6RrRhwCPdsLee5Jrv8gxw0xqnRLZvWWcrnDOd/6dEn+EVJ8gV3Moqtvk+UMjErmKDXO//A5OTqRvf2thRx3/u87/89kmR+zSveniZ0FtHcox9mIprUsc9dHqetTNHQS1/kqM5zG+ogEztLy170iYydavVb0LmFTlW5nMpxbgSrdktj+svoHOe4wPLUl7lbV15AwvJMdHcVBjuYSnyDTCSyJKNqIkj9vslySaWJX7YgH/N0GjPIp0l1XjvzNw7vr2+Cnp+Hwc7HtJbhHn59DMYcDOcQ7GOw9vOWDLPNxiiKXZQmXXzBVnnhNDq7qa9kaSLceA72Qvs6pgPwfI3zdMOiF6/rg3Btx3K143rCaWs7lgP++3QbzZYXW5Ckrv/BDyZ4mp2fVgLs+Cnq7Hz0cSheXVFB+0AeDGzAYhMEwXP9XvHcsVvowd7vwFlK9nce3QX7hbPl4hlwyXXap6uuIB8W9fU6xMa0dTVOXb4X84G8YjMU1/8SEZiLHHYdQz7v5cCvlr5gtw2bIPlXd/kRQ3Nuv39AOjTC7BRZWUH7wNAbP4/lV3f6twntI9SGe3crH/sZ3/hvy6gty6nj52UTOOMz96zdwUCP8eivu/I3yX0KzMO7TzAnHJzjRCXy3lb39kvr8gkdl4n3SclglTPAkClq4G0d4df2DzN3Kx36J/KJ/4bi3qYErezmBFF/hOKcy1hn8xzkUVFD+5iXaK26RodfXsNcCJ1qXYzyZI51OQwu3Un7ReFzyIr75Ol7/NiYs87hScAYpzmY3v+FYl3PL2gLeXyprKyD/xyrdK2XmRdKpWw14GtDWvTjWe2hi/lZ0+Ir+igsfwacy8PxJyKs1redfUZbJzt/KcbNl5Acy700piiV/s0LN/I6SfqJUy4gZHU3lt7aile/T1KKKyL8F196Jb9yLl43GAx7/OQR/KsoHkvKW7PuyXPW05IyVwhjySwo1C5vLK4fGecmW7YWO7kA7L6eV31VknH89rvwzjkvHE++prandm/OY7HG/9B4mswdJUYT8zQs1Z2PTE6gG6x3SyV9yksNopeXJvxLXXIcZ/fHowcQnZexnxa2yzw1yWx9ZEkN+Sa3eIuzQFbtU2WOTTv6Kk32S1haWI7/wCpzWF9vf9HN9t8eLPpJ6sTTvJpM7SWGE/JJaveXYoyemVfqfgNPcm5N9fmN9fgz5F+GS3njD1bUlly9edJJftpGbW8iKCPkl5VrFGyxdVLwOX2W1bZP8l8uJ7Rf1xLcvx5ZX1abOXTxpIamNpEN9G86JrtLdWK61AtO74aiEt4lO7sHJTixH/rqe+MDvcc+EN6g2gE0OwdZvRcgvKdf6DkeflNB2dHJnTvbRWI/9c3DVhXjdpcnefXzBDvtgl4nYoyhGoeZcnJSQrVTpaF1OcjCt3RBD/rIeeMGl1LI0r8oCe+yBaU9FbLC0qVxrSnHRRlwfvXQ0hXb2oJVrYshf0gO7XJp83ycW7LsHDng2xpLrAc58AHPjlkjCbz2KVi6MIX95Dzz70tqwCnd1ANP3wlFZMZZcFxfFZfEk2rjHximtaPmre+DFyTu/ksExYEZOjELNb8i30Xad40TrcKxDYsT2N1yI/S9NRvWqBsxsjVmLYxRqPkvuts+l09I2NHFlVJCnJz52WU1N2vw5ULwsC2ZfHrGXbnG51no+sec2fXcLd+VI344R4fvw91gtaxRqNHjuTnhRO7yiM/6x3JWvMace5o6NUaX7H153v61qQ3NTOMK+UckcF+Hyy2timlZ1B7vvgD3vw7R1m4Z67+GQcpdCwcUHYv6cGFW66WRUvJPGYVK/ofMiJnaKeuPAZHg3AWCvQzDt+y2DPCP6VOjYVXYnTyOqdL/j71YoQMShptZv4IioKd0r8J2ra3qaVnUFr+xRNsgzenxF1uEjz3rM9ZkYJdoPk15+hK5BfRs3wqUR8/mr++LJcbvgJD+BV6XiHx8P2VHza5xYoV0w+NimZLs0okR7BQONub5vQ6xzOD4YlclzHT5yU3LIlxjwxn1xwLchEb5CfO3sCn1HtqlM8e4YJdoPxdpF+whs1AKXRqRxLe6Ph8X1opP8BN6ShulF4eHd6Zk4s0KZNEy0PhnOjyjRXsKFhm4L3xRTW+JdUQmcA3HY4GTHLzHgrbvjX2bEWIRxNX5RoR08N26kPNohkfX5Xb097LjjcP82+E1E9u6iISQXe0oIODgFh16DowpLyS/aMsK36EVcVaGoGyNsQLp5EfX5X3B82Z212uFVnbAoLG//Lzji7uTdnxhwWFMctbCU/HWYnVsqvLuefP+veHetcr8z3VT6e1/E4gyFNPPCzT/fHn9xGr4XJn8oLh+JjRP6I9RWcPh+eO/0so/9d17GT67B3MJSEb7iffVOqdB3X2Nz0syP2GnjlUM3y849E9t2Q8PKte7Dpx5MJnjEHxz+v3jv6yEdvqX475aYuyvmvRUS3l3AdDuSFftJwOXuwAW+GLEyx/dHbdpsoQumnosPRNTqrRuDHSrtR6kN4OC6OKwD3vtJSIdvPX7UF2el/vDZ/BasclFIeHc5k7yOccbcDYSzPI8OFoYlcJ6A/Yo/cz7u1Qu/DCvUfBRnPEnscySpIPinHXHQ0XjnWBy1OkR+IX78AM76cfq2eNVtFnkeua4KifAVMtppjLArd4Tn3HOye9HK3LBkjo6YfQ7+z6XYuQ9uCCvRfgpvrtQf6ecK3tACB76G6fkRQ71i+Y/hZ2VEkmsdckwj21UREb719PcTrvUy0rZ8V9PaFJr4QMSU7uqeeNT/4SNh8sfjyknJzt/2gzfujAOnR+fwTS/Aj4bjZ5GPWrKtQ5a/I9MFMRZhXEnPssuo129g+0a4PiK2f9sN/x1mhC3O8AK+/mptWpM/UeAtv8b0vIg7vwhnjscvyt35kvHW5UmvZYxrIoM8Z9ut9HGH4+4t8POI8O5Hg3B9yMocwevYN2E/Sm0C/7IjjsqMkcBZPNR7HvMj5/0Z70484UBGuzrGCpzz6WTD0se2wJS2+HDE4gwFYfLfwPzptXlLtniDY/bHcffgpNyyEb4fx/lTyfOAMseOtx5PODxiL91i+cvp6jN08gTahadln46du2FhBdbkCd7E4H187+OauC5PdQYzU/C1fXD6HzdtsBSWwzeZnJ+2QmW8dXjCfhHyV9PTh+lmY86IHag5Fw/ohXkVkf8BBp/g0Er5UWorOLchLsrEVYWlgjxFZDuSrB/m3HncMxltfhn5vf2cXnaie8Xm5i/Gun3wtYrI/ww35GLHhP8ItR3M35VVPkyehaWCPGt43jN4zP0Y7Wch8mdw8dbPy9+IAyogP/gaFy7CfRNz1Um2gDx3Ya7jQ4I8H/CQQ0Me+8W7CG3T2Pw2PGkYboglfx4G3+Hr3ydX8ag8mOn+THdWqSBPISNdXEr+Gi7yzG09z124799wUSz5SzFYjenxvcIk5cIUu5Hpupg7bfR0TEXf+WHcjzuMxbdiyV9LQZGs6hzfq0tSLkxyJ8Y5JcZOG0votv35eM/gyBjyA1nxveSViSUkqQR42LMZ5YaICN8jnLH9GTmv4EUx5Acy/zP5Mjn7VxUwwj0Y4pyQCN86OhqXpV+m4tEfYEGE/EA+f05mJVO/qgLSTaGffw1J45pN2/hsqDQD9/kMF4bLnxPIx6EJo0kqCa7xLNIs3CKN6wT/zjHxWXnjP1hvHr4XLn9GINO7x+VESbYNLvM3XGDeFgmczbdM4Nwe5mHKMhwXLn9agUw5Ol7nSrIN0MNUungNHcyjtatoZgaHx3c/vQLW3hoiP5DJ30nmVpWRJ0kAdDCVEzyQFh7K4fFfa0+WnSfzi0rJD+S5mfJUXLZ7T1KNkW/3ljkfbyl/wnoZd21Vty1JJSEzDpdpz8jkr36488ddK48mV/asTcjkujJpj+RjP0mSJEmSJEmSJEmSJEnC+P94utbKpCrluwAAAABJRU5ErkJggg==" alt="IntelliCare" />
+          </div>
+          <div class="demo-toast" id="demoToast">
+            <div class="stripe"></div>
+            <div class="body">
+              <div class="eyebrow-label" id="demoToastLabel">Confirmed</div>
+              <p class="title" id="demoToastTitle">Complex care recognized</p>
+              <p class="desc" id="demoToastText">Insurance already covers it. Nothing for you to do.</p>
+            </div>
+          </div>
+
+          <div class="cc-modal">
+            <button class="cc-close" aria-label="Close">&times;</button>
+            <div class="cc-modal-head">
+              <h4>Continuity of Care</h4>
+              <p>Since the last visit</p>
+            </div>
+            <div class="cc-label">Summary</div>
+            <div class="cc-summary-box">
+              <p><span class="cc-date">Aug 2026</span>: Follow-up for seizure management; dosage reviewed and continued unchanged. <span class="cc-date">Jun 2026</span>: Reported improved headache frequency; preventive therapy options discussed.</p>
+            </div>
+            <div class="cc-label">Previous ordered labs summary</div>
+            <div class="cc-table-wrap">
+              <table class="cc-table">
+                <thead><tr><th>Lab test</th><th>Value</th><th>Unit</th><th>Ref range</th><th>Flag</th></tr></thead>
+                <tbody>
+                  <tr><td>Hemoglobin A1c</td><td>5.8</td><td>%</td><td>4.8&ndash;5.6</td><td class="flag-h">H</td></tr>
+                  <tr><td>T4, Free (Direct)</td><td>0.72</td><td>ng/dL</td><td>0.82&ndash;1.77</td><td class="flag-l">L</td></tr>
+                  <tr><td>Triglycerides</td><td>246</td><td>mg/dL</td><td>0&ndash;149</td><td class="flag-h">H</td></tr>
+                  <tr><td>Glucose</td><td>113</td><td>mg/dL</td><td>70&ndash;99</td><td class="flag-h">H</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="cc-label">Older than 1 year, not summarized</div>
+            <ul class="cc-old">
+              <li>MRI brain, without contrast: see patient documents</li>
+              <li>EEG, routine: see patient documents</li>
+            </ul>
+          </div>
+        </div>
+        <p class="demo-caption">The full Continuity of Care summary opens the instant a note starts, then folds back into the same mark in the corner, which also raises a quiet toast whenever something's confirmed.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="setup">
+    <div class="prose">
+      <div class="section-head reveal-scroll">
+        <div class="kicker">Get set up</div>
+        <h2>One click, nothing to install</h2>
+      </div>
+
+      <ol class="steps">
+        <li class="reveal-scroll"><span class="num">1</span><div class="body"><h4>Add the extension to Chrome</h4><p>Click <strong>Add to Chrome</strong> above and install it like any other extension.</p></div></li>
+        <li class="reveal-scroll"><span class="num">2</span><div class="body"><h4>Generate a pairing code</h4><p>Open the extension's Options page and click <strong>Generate pairing code</strong>.</p></div></li>
+        <li class="reveal-scroll"><span class="num">3</span><div class="body"><h4>Give the code to IT</h4><p>Your practice's IT contact approves new devices from the admin console.</p></div></li>
+        <li class="reveal-scroll"><span class="num">4</span><div class="body"><h4>You're live</h4><p>The extension goes from pending to active automatically the moment it's approved. Nothing more to do here.</p></div></li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div>IntelliCare is internal software for LoneStar Neurology and isn't available to the public.</div>
+  <div class="foot-links">
+    <a href="https://it-lonestarneurology.github.io/intellicare-privacy/" id="privacyLink" target="_blank" rel="noopener noreferrer">Privacy policy</a>
+    <span>v3.0.0</span>
+  </div>
+</footer>
+
+<div id="toast" role="status" style="position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;background:var(--chrome);color:var(--chrome-ink);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);border:1px solid var(--chrome-line);padding:12px 20px;border-radius:999px;font-size:13.5px;font-weight:600;max-width:calc(100% - 40px);text-align:center;z-index:30"></div>
+
+<script>
+  (function () {
+    var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Hero: reveal on load, staggered by each element's own animation-delay
+    // (set inline in the markup) rather than JS timers -- it's the very
+    // first thing shown, so it can't wait on a scroll.
+    Array.prototype.forEach.call(document.querySelectorAll(".hero .reveal"), function (el) {
+      el.classList.add("in");
+    });
+
+    // Rolling reveal for everything else: sections and cards fade/slide/
+    // sharpen into place as the page scrolls past them. An element already
+    // inside the loaded viewport intersects on the very next frame, so nothing
+    // sits invisible waiting on a scroll that might never come -- only
+    // content genuinely below the fold waits on a real one.
+    if ("IntersectionObserver" in window) {
+      var revealObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("in");
+            revealObserver.unobserve(entry.target);
+          }
+        });
+      }, { threshold:0.1, rootMargin:"0px 0px -8% 0px" });
+      Array.prototype.forEach.call(document.querySelectorAll(".reveal-scroll"), function (el) {
+        revealObserver.observe(el);
+      });
+    } else {
+      Array.prototype.forEach.call(document.querySelectorAll(".reveal-scroll"), function (el) {
+        el.classList.add("in");
+      });
+    }
+
+    // Live demo: one stage, one badge, two things it does, dialog first. The
+    // resting HTML already has .modal-open on the stage, so the Continuity
+    // of Care dialog is the real example shown even if this script never
+    // runs. From there: fold it away, let the toast cycle through the two
+    // real message kinds, then scale the badge back up into the full dialog
+    // and loop -- the toast steps aside while the dialog's open (see
+    // .modal-open in CSS) so the two never fight for the same space.
+    var demoMessages = [
+      { kind:"confirm", label:"Confirmed", title:"Complex care recognized", text:"Insurance already covers it. Nothing for you to do." },
+      { kind:"decision", label:"Needs a decision", title:"Botox mentioned", text:"Needs 15+ migraine days a month and a failed triptan on record." }
+    ];
+    var demoStage = document.getElementById("demoStage");
+    var demoToast = document.getElementById("demoToast");
+    var demoLabel = document.getElementById("demoToastLabel");
+    var demoTitle = document.getElementById("demoToastTitle");
+    var demoText = document.getElementById("demoToastText");
+    var demoIndex = 0;
+    // Starts true to match the resting HTML state -- the stage loads with
+    // .modal-open already on it, so the Continuity of Care dialog is the
+    // first thing shown, full-size, no animation required to see it.
+    var modalOpen = true;
+    function cycleDemo() {
+      if (modalOpen) return;
+      demoToast.classList.add("swap");
+      setTimeout(function () {
+        demoIndex = (demoIndex + 1) % demoMessages.length;
+        var m = demoMessages[demoIndex];
+        demoToast.classList.toggle("decision", m.kind === "decision");
+        demoLabel.textContent = m.label;
+        demoTitle.textContent = m.title;
+        demoText.textContent = m.text;
+        demoToast.classList.remove("swap");
+      }, 320);
+    }
+    function openModal() {
+      modalOpen = true;
+      demoStage.classList.add("modal-open");
+    }
+    function closeModal() {
+      modalOpen = false;
+      demoStage.classList.remove("modal-open");
+    }
+    if (demoStage && !reduceMotion) {
+      setInterval(cycleDemo, 3800);
+      // Dialog first: hold the resting open state for one good look, then
+      // fold it away so the toast can cycle; after that, open/close on a
+      // steady loop -- dialog, then toast, dialog, then toast.
+      setTimeout(closeModal, 4200);
+      setInterval(function () {
+        openModal();
+        setTimeout(closeModal, 4200);
+      }, 9000);
+    }
+
+    // Toast (page chrome, not the demo above), used for click feedback --
+    // the artifact viewer never shows alert()/confirm()/prompt(), so this
+    // page builds its own.
+    var toastEl = document.getElementById("toast");
+    var toastTimer = null;
+    function pageToast(msg) {
+      toastEl.textContent = msg;
+      toastEl.style.opacity = "1";
+      toastEl.style.transform = "translateX(-50%) translateY(0)";
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () {
+        toastEl.style.opacity = "0";
+        toastEl.style.transform = "translateX(-50%) translateY(12px)";
+      }, 2600);
+    }
+
+  })();
+</script>
